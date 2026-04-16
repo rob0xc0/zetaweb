@@ -1,0 +1,20 @@
+#basediv{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+#imagediv{
+    display: flex;
+    justify-content: center;
+}
+
+#dialoguediv, #chatdiv{
+    flex: 0;
+}
+#imagediv img{
+    width: 75%;
+    height: auto;
+}
