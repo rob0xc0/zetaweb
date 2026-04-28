@@ -3,7 +3,7 @@ const anim = document.getElementById("anim");
 const textInput = document.getElementById("textInput");
 const submitButton = document.getElementById("submitButton")
 
-const ws = new WebSocket("ws://localhost:3001/");
+const ws = new WebSocket("https://relapsing-outshoot-saloon.ngrok-free.dev");
 
 
 ws.onopen = () => {

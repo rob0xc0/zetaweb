@@ -10,7 +10,7 @@ const _dirname = path.dirname(_filename)
 import { configDotenv } from "dotenv";
 configDotenv()
 
-import { GROQAPILLM } from "./llm.js";
+import { GROQAPILLM } from "../brain/llm.js";
 
 const LLM = new GROQAPILLM(process.env.GROQ_API_KEY, "LLAMA_8B");
 
