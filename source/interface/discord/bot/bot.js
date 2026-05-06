@@ -1,13 +1,10 @@
 import { Client, Events, GatewayIntentBits } from "discord.js";
-import { config } from "dotenv";
-config()
 
-import { GroqLLMModels } from "../../brain/llm.js";
-import { GroqAPILLM } from "../../brain/llm.js";
-
-const LLM = new GroqAPILLM(process.env.GROQ_API_KEY, GroqLLMModels.LLAMA_70B);
+import { GroqAPILLM } from "../../../core/zeta-llm/llm.js";
 
 export function activate_discord_bot(){
+    const LLM = new GroqAPILLM(process.env.GROQ_API_KEY);
+
     const client = new Client({ 
         intents: [
             GatewayIntentBits.MessageContent, 
@@ -26,14 +23,14 @@ export function activate_discord_bot(){
         console.log(message.content);
         message.content = "USER:<" + message.author.username + ">" + message.content;
 
-        let response = await LLM.generate(message.content); 
+        let response = await LLM.apiGenerate(message.content); 
         
         if(response){
             response = response.slice(0, 2000);
             console.log(response.slice(0, 2000));
             await message.channel.send(response);
         } else {
-            await message.channel.send("uhm");
+            await message.channel.send("no response from LLM");
         }
 
     });

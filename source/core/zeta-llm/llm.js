@@ -1,22 +1,28 @@
+import { readFile } from "node:fs/promises";
+import llmConfig from "./../../config/llm-config.json" with { type: "json"};
+import path from "path";
+
+const personality = await readFile(path.join(import.meta.dirname, "./../../config/llm-personality.txt"), { encoding: "utf-8" });
 
 
-export const GroqLLMModels = Object.freeze({
-    //WARNING, THESE MODELS MIGHT CHANGE DEPENDING ON THE AVAILABLE MODELS AT https://console.groq.com/docs/rate-limits
-    LLAMA_8B: "llama-3.1-8b-instant",
-    LLAMA_70B: "llama-3.3-70b-versatile"
-})
-
+//dont include memory inside this, since groqapi can just be one of many LLM sources-
 export class GroqAPILLM {
-    constructor(apiKey, model){
+    constructor(apiKey, model=llmConfig.groqModel){
         this.apiKey = apiKey;
-        if(!Object.values(GroqLLMModels).includes(model)){ throw new Error(`Unavailable model used in LLM: ${model}`); }
-        this.model = model; 
-        this.commands = [
+        this.model = model;
+        this.commands = {
+            test: function ({ input }){
+                console.log(input);
+                return input;
+            }
+        }
+
+        this.commands_schema = [
             {
                 type: "function",
                 function: {
                     name: "test",
-                    description: "a test function that intakes an users input string and returns that same string",
+                    description: "test function that only activates if user mentions test. It takes the user's input text into the this function's input variable, 1 to 1 copy",
                     parameters: {
                         type: "object",
                         properties: {
@@ -28,30 +34,15 @@ export class GroqAPILLM {
                     strict: true
                 }
             }
-            /*,
-            {
-                type: "function",
-                function: {
-                    name: "test_again",
-                    description: "another test function that intakes the users input and returns that same string, used to try multiple tools",
-                    parameters: {
-                        type: "object",
-                        properties: {
-                            input: { type: "string" }
-                        },
-                        required: ["input"],
-                        additionalProperties: false
-                    },
-                    strict: true
-                }
-            }
-            */
         ]
 
         this.memory = [];
+        this.personality = personality;
+
+        //if(!this.apiKey) throw new Error("LLM api key is undefined");
     }
 
-    async generate(prompt){
+    async apiGenerate(prompt){
         if(!prompt){
             throw new TypeError("LLM.generate cannot take null prompt");
         }
@@ -60,16 +51,9 @@ export class GroqAPILLM {
         const context = this.memory.slice(-30); // last 15x2 memories
         context.push({
             "role": "system", 
-            "content": `
-                your name is zeta, your creator is rob (old name was lumi)
-                only reply with short phrases and lower case, 
-                talk as calm and rational as cute as you can,
-                use cute effects like ! ?? !!!! :3 :o and other emoticons but not too excessively
-            `
+            "content": this.personality
         }); //main behaviour
 
-        console.log(context);
-        console.log(context.length);
         let endpoint = "https://api.groq.com/openai/v1/chat/completions";
         const payload = {
             method: "POST",
@@ -80,22 +64,38 @@ export class GroqAPILLM {
             body: JSON.stringify({
                 "model": this.model,
                 "messages": context,
-                "tools": this.commands
+                "tools": this.commands_schema
             })
         };
         
         //might be null
-        let response = await fetch(endpoint, payload);
-        let data = await response.json();
+        const response = await fetch(endpoint, payload);
+        return this.parseResponse(response);
+    }
 
-        //console.log(data);
+    async parseResponse(response){
+        const data = await response.json();
 
-        if (data){
-            this.memory.push({"role": "assistant", "content": data.choices[0].message.content});
+        console.log(data);
+
+        if(data.error){
+            console.log(data.error.message);
+            console.log(data.error.type);
+            console.log(data.error.code); //from API schema
+
+        }else if(data.choices[0].message.tool_calls) {
+            const fschem = data.choices[0].message.tool_calls[0].function;
+            console.log(fschem); // this would be the command function but constructed as a schema
+
+            return this.commands[fschem.name](JSON.parse(fschem.arguments));
+        }else if(data.choices[0].message.content){
             console.log(data.choices[0].message);
-            //console.log(data.choices[0].message.tool_calls[0].function)
-            return data.choices[0].message.content;
-        } else {
+
+            const content = data.choices[0].message.content;
+            console.log(content);
+            this.memory.push({"role": "assistant", "content": content});
+            return content;
+        }else{
             return "llm.js generate() return data is empty";
         }
     }
