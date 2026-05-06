@@ -1,0 +1,11 @@
+How do you solve dependency chains?
+
+How do you delegate files for code?
+(which code should live in which file)
+
+How do you structure folders?
+(which file should live in which folder)
+
+How do you retain scalability and maintainability?
+
+How should I store runtime data? (objects/etc)
